@@ -1,159 +1,80 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, user-scalable=no"
-    />
+import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenAI } from '@google/genai';
 
-    
+// Initialize the GoogleGenAI instance server-side securely.
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    },
+  },
+});
 
-    <title>
-      File Browser
-    </title>
+const SYSTEM_INSTRUCTION = `
+Actúas como un asesor experto de monetización digital y arquitectura PropTech de Empresa LIBRE, trabajando de la mano con el CEO Juan Pablo Yáñez Melgar.
+Tu objetivo es orientar a desarrolladores inmobiliarios sobre cómo transformar sus proyectos y lotes baldíos en Smart Cities que facturen ingresos digitales recurrentes.
 
-    <meta name="robots" content="noindex,nofollow" />
+Conoces al detalle las reglas de Empresa LIBRE:
+1. /Hotspot-Libre (WiFi Marketing): Portales cautivos en zonas calientes. Captura automatizada de leads (nombre, teléfono, correo) y ciclo de pautas directo al WhatsApp cada 33 minutos.
+2. /Hotspot-Movil (Conectividad en Ruta): WiFi en vehículos de cortesía con Starlink empresarial para traslados de prospectos.
+3. /Intranet-360 (Ecosistema Masivo): Nodo maestro con 6 antenas sectoriales de 60° (marca Cambium Networks XV2-2T1 de 1.2km o Cambium XV2-2T0 omni de 500m) en bandas 5GHz y 6GHz con IPTV, Internet unificado y Videovigilancia.
+4. /MetroMesh (Red Condominal): Enlaces de 60GHz inalámbricos de poste a poste o esquina a esquina sin cableado aéreo, con WiFi marketing residencial redundante.
 
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="/be3df44e20cd87e4/static/img/icons/favicon.svg"
-    />
-    <link rel="shortcut icon" href="/be3df44e20cd87e4/static/img/icons/favicon.ico" />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="/be3df44e20cd87e4/static/img/icons/apple-touch-icon.png"
-    />
-    <meta name="apple-mobile-web-app-title" content="File Browser" />
+Reglas de Monetización de Empresa LIBRE:
+- Reparto de dividendos: 67% Neto para la Inmobiliaria/Desarrolladora y 33% de Regalías para Empresa LIBRE por administración, software SaaS y soporte.
+- Costos de Software: Concesión anual de $2,222 USD por servicio independiente operado en la nube de LIBRE (SaaS). No se vende el código fuente ni licencias permanentes.
+- Hardware: El cliente lo adquiere por su cuenta o con asesoría técnica. Marcas homologadas: Cambium Networks, Cisco Meraki, Aruba HPE, Ruckus, Fortinet.
+- Tiempos de Entrega: Implementación de 7 a 15 días hábiles.
+- Planes recurrentes simulados:
+  * Internet Prepago Solo (49 BOB/mes por usuario)
+  * Combo Internet + IPTV (88 BOB/mes por hogar)
+  * Triple Play Completo (Internet + IPTV + Videovigilancia) (108 BOB/mes por lote)
 
-    
-    <link
-      rel="manifest"
-      id="manifestPlaceholder"
-      crossorigin="use-credentials"
-    />
-    <meta
-      name="theme-color"
-      content="#2979ff"
-    />
+Reglas de comunicación:
+- Responde de manera profesional, estructurada, corporativa, elegante y persuasiva.
+- Trata de destacar que Juan Pablo Yáñez Melgar lidera estos proyectos de asesoría de clase mundial en Santa Cruz de la Sierra, Bolivia.
+- Si el usuario te hace alguna pregunta técnica o de cálculo, realiza los números de forma exacta. Por ejemplo: para "X" usuarios, el ingreso total se calcula multiplicando por la tarifa, aplicando el 67% para la inmobiliaria y el 33% para Empresa LIBRE.
+- Mantén las respuestas claras, concisas, con formato markdown (negritas, listas), amigables y en español.
+`;
 
-    
-    <script>
-      
-      window.FileBrowser = {"AuthLogoutURL":"/logout","AuthMethod":"proxy","BaseURL":"/be3df44e20cd87e4","CSS":false,"Color":"","DisableExternal":true,"DisableUsedPercentage":true,"EnableExec":false,"EnableThumbs":true,"HideLoginButton":false,"LoginPage":false,"LogoutPage":"/login","Name":"","NoAuth":false,"QuotaExists":true,"ReCaptcha":false,"ResizePreview":true,"Signup":false,"StaticURL":"/be3df44e20cd87e4/static","Theme":"","TmpDir":"","TrashDir":".trash","TusSettings":{"chunkSize":10485760,"retryCount":5},"Version":"v2.63.2-h2"};
-      
-      window.__prependStaticUrl = (url) => {
-        return `${window.FileBrowser.StaticURL}/${url.replace(/^\/+/, "")}`;
-      };
-      var dynamicManifest = {
-        name: window.FileBrowser.Name || "File Browser",
-        short_name: window.FileBrowser.Name || "File Browser",
-        icons: [
-          {
-            src: window.__prependStaticUrl("/img/icons/android-chrome-192x192.png"),
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: window.__prependStaticUrl("/img/icons/android-chrome-512x512.png"),
-            sizes: "512x512",
-            type: "image/png",
-          },
-        ],
-        start_url: window.location.origin + window.FileBrowser.BaseURL,
-        display: "standalone",
-        background_color: "#ffffff",
-        theme_color: window.FileBrowser.Color || "#455a64",
-      };
+export async function POST(req: NextRequest) {
+  try {
+    const { messages } = await req.json();
 
-      const stringManifest = JSON.stringify(dynamicManifest);
-      const blob = new Blob([stringManifest], { type: "application/json" });
-      const manifestURL = URL.createObjectURL(blob);
-      document
-        .querySelector("#manifestPlaceholder")
-        .setAttribute("href", manifestURL);
-    </script>
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: 'Mensajes inválidos o ausentes' }, { status: 400 });
+    }
 
-    <style>
-      #loading {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: #fff;
-        z-index: 9999;
-        transition: 0.1s ease opacity;
-        -webkit-transition: 0.1s ease opacity;
-      }
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
+      return NextResponse.json({
+        text: 'La API de Gemini no está configurada por completo en esta vista previa. Sin embargo, el modelo de negocio de Empresa LIBRE está pre-cargado. Los dividendos son de 67% para la Inmobiliaria y 33% de regalías para Empresa LIBRE.',
+      });
+    }
 
-      #loading.done {
-        opacity: 0;
-      }
+    // Adapt format for GenerateContentParameters
+    // Map messages payload to prompt structure
+    const contents = messages.map((m: any) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
 
-      #loading .spinner {
-        width: 70px;
-        text-align: center;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-      }
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: contents,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.7,
+      },
+    });
 
-      #loading .spinner > div {
-        width: 18px;
-        height: 18px;
-        background-color: #333;
-        border-radius: 100%;
-        display: inline-block;
-        animation: sk-bouncedelay 1.4s infinite ease-in-out both;
-      }
-
-      #loading .spinner .bounce1 {
-        animation-delay: -0.32s;
-      }
-
-      #loading .spinner .bounce2 {
-        animation-delay: -0.16s;
-      }
-
-      @keyframes sk-bouncedelay {
-        0%,
-        80%,
-        100% {
-          transform: scale(0);
-        }
-        40% {
-          transform: scale(1);
-        }
-      }
-    </style>
-    <script type="module" crossorigin src="/be3df44e20cd87e4/static/assets/index-DS1Ww0PZ.js"></script>
-    <link rel="modulepreload" crossorigin href="/be3df44e20cd87e4/static/assets/rolldown-runtime-BM3Ffeng.js">
-    <link rel="modulepreload" crossorigin href="/be3df44e20cd87e4/static/assets/dayjs-CU4aXbXs.js">
-    <link rel="modulepreload" crossorigin href="/be3df44e20cd87e4/static/assets/i18n-CQQdtwyM.js">
-    <link rel="stylesheet" crossorigin href="/be3df44e20cd87e4/static/assets/index-wa3fMp3r.css">
-    <script type="module">import'data:text/javascript,if(!import.meta.resolve)throw Error("import.meta.resolve not supported")';import.meta.url;import("_").catch(()=>1);(async function*(){})().next();window.__vite_is_modern_browser=true</script>
-    <script type="module">!function(){if(window.__vite_is_modern_browser)return;console.warn("vite: loading legacy chunks, syntax error above and the same error below should be ignored");var e=document.getElementById("vite-legacy-polyfill"),n=document.createElement("script");n.src=e.src,n.onload=function(){System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))},document.body.appendChild(n)}();</script>
-  </head>
-  <body>
-    <div id="app"></div>
-
-    <div id="loading">
-      <div class="spinner">
-        <div class="bounce1"></div>
-        <div class="bounce2"></div>
-        <div class="bounce3"></div>
-      </div>
-    </div>
-
-
-    
-    <script nomodule>!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();</script>
-    <script nomodule crossorigin id="vite-legacy-polyfill" src="/be3df44e20cd87e4/static/assets/polyfills-legacy-BPykzjGH.js"></script>
-    <script nomodule crossorigin id="vite-legacy-entry" data-src="/be3df44e20cd87e4/static/assets/index-legacy-Cvib5KIa.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
-  </body>
-</html>
+    const reply = response.text || 'No pude generar una respuesta. Por favor, intenta de nuevo.';
+    return NextResponse.json({ text: reply });
+  } catch (error: any) {
+    console.error('Error en API Gemini:', error);
+    return NextResponse.json(
+      { error: 'Error del servidor al procesar la inteligencia artificial: ' + error.message },
+      { status: 500 }
+    );
+  }
+}
